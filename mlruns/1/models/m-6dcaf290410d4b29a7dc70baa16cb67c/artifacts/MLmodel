@@ -1,0 +1,21 @@
+artifact_path: /Users/jordanharris/Code/mlops_zoomcamp/mlruns/1/models/m-6dcaf290410d4b29a7dc70baa16cb67c/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.10.18
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.7.0
+mlflow_version: 3.1.1
+model_id: m-6dcaf290410d4b29a7dc70baa16cb67c
+model_size_bytes: 411605
+model_uuid: m-6dcaf290410d4b29a7dc70baa16cb67c
+prompts: null
+utc_time_created: '2025-06-27 14:56:47.139110'
