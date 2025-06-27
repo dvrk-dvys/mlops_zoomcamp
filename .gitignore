@@ -1,6 +1,7 @@
 *.tar
 #*.pkl
 #*.xml
+*.bin
 *.pt
 *.pth
 *.npy
