@@ -1,0 +1,7 @@
+name: mlops_zoomcamp
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - scikit-learn=1.7.0
+  - flask
