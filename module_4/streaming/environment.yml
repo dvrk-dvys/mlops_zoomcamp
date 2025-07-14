@@ -1,0 +1,8 @@
+name: mlops_zoomcamp
+channels:
+  - conda-forge
+dependencies:
+  - scikit-learn=1.7.0
+  - flask
+  - boto
+  - pickle
