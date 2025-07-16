@@ -1,0 +1,46 @@
+version: '3.10'
+
+volumes: 
+  grafana_data: {} # can save all the artifacts after up/down, can put the datasource for grafana or config for dashboard ect
+
+networks:
+  front-tier:
+  back-tier:
+# so that services can communicate between each other
+services:
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: example
+    ports:
+      - "5432:5432"
+    networks:
+      - back-tier
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    networks:
+      - back-tier
+      - front-tier  
+
+  grafana:
+    #image: grafana/grafana-enterprise
+    image: grafana/grafana
+    user: "472"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./config/grafana_datasources.yaml:/etc/grafana/provisioning/datasources/datasource.yaml:ro
+      - ./config/grafana_dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml:ro
+      - ./dashboards:/opt/grafana/dashboards
+    networks:
+      - back-tier
+      - front-tier
+    restart: always
+
+    #username is admin
+    #new password: mlops_admin
