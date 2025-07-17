@@ -50,12 +50,13 @@ Record example
         "trip_distance": 3.66
     }, 
     "ride_id": 123
-}
+} 
 ```
 
 Sending this record
 
 ```bash
+KINESIS_STREAM_INPUT=ride_events
 aws kinesis put-record \
     --stream-name ${KINESIS_STREAM_INPUT} \
     --partition-key 1 \

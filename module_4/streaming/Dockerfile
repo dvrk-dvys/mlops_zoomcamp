@@ -54,3 +54,6 @@ CMD ["lambda_function.lambda_handler"]
 
 #https://gallery.ecr.aws/lambda/python
 #python for lambda functions to use in docker
+
+
+#!!!! maybe you need to go in and gie the lamdba fuctions that is using this docker file s3 permissions and maybe more memory
