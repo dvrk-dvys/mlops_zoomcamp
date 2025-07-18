@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  lambda-duration:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: lambda-func-duration:v1
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - PREDICTIONS_STREAM_NAME=ride_predictions
+      - TEST_RUN=True
+      - AWS_DEFAULT_REGION=us-east-1
+    volumes:
+      - ~/.aws:/root/.aws:ro  # Read-only mount for security
+    stdin_open: true
+    tty: true
+
+
+    # Alternative: Use environment variables instead of volume
+    # environment:
+    #   - PREDICTIONS_STREAM_NAME=ride_predictions
+    #   - TEST_RUN=True
+    #   - AWS_DEFAULT_REGION=us-east-1
+    #   - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+    #   - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+
+  # Optional: Add a test service
+  integration-test:
+    build:
+      context: module_6/src
+      dockerfile: Dockerfile.test  # Create this if you want
+    depends_on:
+      - lambda-duration
+    environment:
+      - LAMBDA_URL=http://lambda-duration:8080/2015-03-31/functions/function/invocations
+    profiles:
+      - test  # Only run when specifically requested
+    env_file:
+        - .env
