@@ -30,4 +30,3 @@ services:
       - test  # Only run when specifically requested
     env_file:
         - .env
-

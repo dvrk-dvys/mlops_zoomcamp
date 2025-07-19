@@ -14,9 +14,9 @@ mlruns/
 *.wav
 *.zip
 *.flac
-*.txt
-*.png
-*.csv
+#*.txt
+#*.png
+#*.csv
 *.parquet
 
 # ========== Environments ==========
@@ -30,6 +30,7 @@ venv.bak/
 /venv/
 
 # ========== Python Cache / Build ==========
+__pycache__/
 __pycache__/
 *.py[cod]
 *$py.class

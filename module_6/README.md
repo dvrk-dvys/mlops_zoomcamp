@@ -31,3 +31,9 @@ docker-compose down
 
 ```
 
+```
+hooks
+
+pip install pre-commit black isort pylint pytest
+pre-commit install
+```

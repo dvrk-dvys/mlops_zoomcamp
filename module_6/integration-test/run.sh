@@ -68,7 +68,7 @@ while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
         echo "Port 8180 is accessible, checking Lambda function..."
         # Give it a few more seconds for Lambda to fully initialize
         sleep 5
-        
+
         # Now test with actual payload
         if curl -s --max-time 10 http://localhost:8180/2015-03-31/functions/function/invocations \
            -H "Content-Type: application/json" \
