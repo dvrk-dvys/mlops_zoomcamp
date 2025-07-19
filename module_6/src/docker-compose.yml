@@ -18,17 +18,6 @@ services:
       - ~/.aws:/root/.aws:ro  # Read-only mount for security
     stdin_open: true
     tty: true
-
-
-    # Alternative: Use environment variables instead of volume
-    # environment:
-    #   - PREDICTIONS_STREAM_NAME=ride_predictions
-    #   - TEST_RUN=True
-    #   - AWS_DEFAULT_REGION=us-east-1
-    #   - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-    #   - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-
-  # Optional: Add a test service
   integration-test:
     build:
       context: module_6/src
@@ -41,3 +30,4 @@ services:
       - test  # Only run when specifically requested
     env_file:
         - .env
+
