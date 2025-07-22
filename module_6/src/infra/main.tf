@@ -47,7 +47,7 @@ module "s3_bucket"  {
 
 module "ecr_image" {
   source = "./modules/ecr"
-  ecr_repo_name = "${var.ecr_repo_name}-${var.project_id}"
+  ecr_repo_name = "${var.ecr_repo_name}_${var.project_id}"
   account_id = local.account_id
   lambda_function_local_path = var.lambda_function_local_path
   docker_image_local_path = var.docker_image_local_path
