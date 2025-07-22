@@ -7,3 +7,9 @@ hooks
 
 pip install pre-commit black isort pylint pytest
 pre-commit install
+
+
+to prepare the project, run
+''' bash
+make setup
+'''

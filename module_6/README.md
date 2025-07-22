@@ -37,3 +37,24 @@ hooks
 pip install pre-commit black isort pylint pytest
 pre-commit install
 ```
+
+
+```
+!!! start the docker daemon 1st !!!
+
+terraform init
+terraform plan  #source-stream-name : ride-events-stg
+terraform apply
+
+
+var.model_bucket
+  s3_bucket
+
+  Enter a value: stg-mlflow-models
+
+var.output_stream_name
+  Enter a value: stg_ride_predictions
+
+var.source_stream_name
+  Enter a value: stg_ride_events
+```

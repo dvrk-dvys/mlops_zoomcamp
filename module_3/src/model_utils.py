@@ -3,13 +3,14 @@
 
 import os
 import pickle
-import yaml
-import pandas as pd
+from pathlib import Path
+
 import mlflow
+import pandas as pd
+import yaml
+from sklearn.feature_extraction import DictVectorizer
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import root_mean_squared_error
-from pathlib import Path
-from sklearn.feature_extraction import DictVectorizer
 
 
 # Configure MLflow - check if there's a running server, otherwise use local directory

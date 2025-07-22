@@ -1,0 +1,70 @@
+name: CI-Tests
+on:
+  pull_request:
+    branches:
+      - 'develop'
+    paths:
+      - 'module_6/src/**'
+
+env:
+  AWS_DEFAULT_REGION: 'eu-east-1'
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2 # github action to checkout the repo to the vm & install docker
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.9
+
+      - name: Install dependencies
+        working-directory: "06-best-practices/code"
+        run: pip install pipenv && pipenv install --dev
+
+      - name: Run Unit tests  # Execute pytest unit tests
+        working-directory: "06-best-practices/code"
+        run: pipenv run pytest tests/  # Run all tests in tests/ directory
+
+      - name: Lint  # Check code quality/style with pylint
+        working-directory: "06-best-practices/code"
+        run: pipenv run pylint --recursive=y .  # Lint all Python files recursively
+
+      - name: Configure AWS Credentials  # Set up AWS access for integration tests
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Integration Test  # Test actual AWS services interaction
+        working-directory: 'module_6/integration-test'
+        run: |
+          . run.sh  # Execute integration test script (tests real AWS resources)
+
+  tf-plan:  # Second job: Validate Terraform infrastructure
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2  # Get the code
+
+      - name: Configure AWS Credentials  # Need AWS access for Terraform
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - uses: hashicorp/setup-terraform@v2  # Install Terraform CLI on the runner
+
+      - name: TF plan  # Validate infrastructure changes without applying
+        id: plan  # Give this step an ID so other steps can reference it
+        working-directory: 'module_6/src/infra'
+        run: |
+          # Initialize Terraform with production state file (its normally set to the stg environment so we pass the prod key)
+          terraform init -backend-config="key=mlops-zoomcamp-prod.tfstate" --reconfigure &&
+          # Generate execution plan for production environment
+          terraform plan --var-file vars/prod.tfvars

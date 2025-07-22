@@ -1,19 +1,19 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import sys
 import logging
-import numpy as np
+import sys
 
-from prefect import task, flow
 import mlflow
+import numpy as np
+from prefect import flow, task
 
 # Import the utility functions we already have
 from module_3.src.model_utils import (
-    read_dataframe,
     create_X,
-    train_linear_model,
     log_model_with_mlflow,
+    read_dataframe,
+    train_linear_model,
 )
 
 

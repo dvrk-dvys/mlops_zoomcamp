@@ -144,3 +144,10 @@ cython_debug/
 # ========== Commented File Types to Review ==========
 #*.pkl
 #*.xml
+
+
+# ========== Terraform State Files ==========
+
+.terraform/
+*.tfstate
+*.tfstate.*

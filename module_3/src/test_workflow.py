@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import os
-import time
 import argparse
 import logging
-import requests
+import os
 import subprocess
-import pandas as pd
-import mlflow
+import time
 from pathlib import Path
+
+import mlflow
+import pandas as pd
+import requests
 
 # Set up logging
 logging.basicConfig(
