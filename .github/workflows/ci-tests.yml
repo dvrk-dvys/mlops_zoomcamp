@@ -23,15 +23,15 @@ jobs:
           python-version: 3.9
 
       - name: Install dependencies
-        working-directory: "06-best-practices/code"
+        working-directory: "module_6/src"
         run: pip install pipenv && pipenv install --dev
 
       - name: Run Unit tests  # Execute pytest unit tests
-        working-directory: "06-best-practices/code"
+        working-directory: "module_6/src"
         run: pipenv run pytest tests/  # Run all tests in tests/ directory
 
       - name: Lint  # Check code quality/style with pylint
-        working-directory: "06-best-practices/code"
+        working-directory: "module_6/src"
         run: pipenv run pylint --recursive=y .  # Lint all Python files recursively
 
       - name: Configure AWS Credentials  # Set up AWS access for integration tests
