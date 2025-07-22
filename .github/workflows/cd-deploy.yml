@@ -54,6 +54,7 @@ jobs:
 
       - name: Build, tag, and push image to Amazon ECR
         id: build-image-step
+        timeout-minutes: 20  # Increased timeout from default 6 minutes
         working-directory: "module_6/src"  # Updated path to your source code
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -61,7 +62,24 @@ jobs:
           IMAGE_TAG: "latest"   # ${{ github.sha }}
         run: |
           docker build -t ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+          # Retry docker push up to 3 times with exponential backoff
+          for attempt in {1..3}; do
+            echo "Push attempt $attempt..."
+            if docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG; then
+              echo "✅ Push successful on attempt $attempt"
+              break
+            else
+              if [ $attempt -eq 3 ]; then
+                echo "❌ Push failed after 3 attempts"
+                exit 1
+              else
+                echo "Push attempt $attempt failed, waiting before retry..."
+                sleep $((attempt * 10))  # 10s, 20s, 30s delays
+              fi
+            fi
+          done
+
           echo "::set-output name=image_uri::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
 
       # Deploy
@@ -71,6 +89,7 @@ jobs:
         # But due to the limited scope of this workshop, we would be keeping things simple.
         # In practice, you would also have a separate training pipeline to write new model artifacts to your Model Bucket in Prod.
         id: get-model-artifacts
+        timeout-minutes: 10  # Add timeout for S3 sync
         working-directory: "module_6/src"  # Updated path
         env:
           MODEL_BUCKET_DEV: "mlflow-models-585315266445"  # Updated to your actual dev bucket
@@ -83,6 +102,7 @@ jobs:
           echo "::set-output name=run_id::no-run-id"
 
       - name: Update Lambda
+        timeout-minutes: 10  # Add timeout for Lambda updates
         env:
           LAMBDA_FUNCTION: ${{ steps.tf-apply.outputs.lambda_function }}
           PREDICTIONS_STREAM_NAME: ${{ steps.tf-apply.outputs.predictions_stream_name }}
@@ -95,14 +115,25 @@ jobs:
                     MODEL_BUCKET=$MODEL_BUCKET \
                     }"
 
-          STATE=$(aws lambda get-function --function-name $LAMBDA_FUNCTION --region ${{ env.AWS_DEFAULT_REGION }} --query 'Configuration.LastUpdateStatus' --output text)
-              while [[ "$STATE" == "InProgress" ]]
-              do
-                  echo "sleep 5sec ...."
-                  sleep 5s
-                  STATE=$(aws lambda get-function --function-name $LAMBDA_FUNCTION --region ${{ env.AWS_DEFAULT_REGION }} --query 'Configuration.LastUpdateStatus' --output text)
-                  echo $STATE
-              done
+          # Wait for Lambda to be ready with timeout
+          echo "Waiting for Lambda to be ready..."
+          MAX_ATTEMPTS=12  # 1 minute max wait
+          ATTEMPT=0
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            STATE=$(aws lambda get-function --function-name $LAMBDA_FUNCTION --region ${{ env.AWS_DEFAULT_REGION }} --query 'Configuration.LastUpdateStatus' --output text)
+            if [[ "$STATE" != "InProgress" ]]; then
+              echo "✅ Lambda is ready (status: $STATE)"
+              break
+            fi
+            echo "Lambda still updating... (attempt $((ATTEMPT + 1))/$MAX_ATTEMPTS, status: $STATE)"
+            sleep 5
+            ATTEMPT=$((ATTEMPT + 1))
+          done
+
+          if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+            echo "❌ Lambda update timed out"
+            exit 1
+          fi
 
           aws lambda update-function-configuration --function-name $LAMBDA_FUNCTION \
                     --environment "Variables=${variables}"
