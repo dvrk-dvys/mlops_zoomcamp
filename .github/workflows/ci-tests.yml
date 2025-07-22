@@ -43,6 +43,7 @@ jobs:
         #run: pipenv run pylint --recursive=y .  # Lint all Python files recursively
         run: python -m pylint *.py || echo "Linting completed"
 
+
       - name: Configure AWS Credentials  # Set up AWS access for integration tests
         uses: aws-actions/configure-aws-credentials@v1
         with:
