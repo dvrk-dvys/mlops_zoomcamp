@@ -8,8 +8,9 @@ services:
     image: lambda-func-duration:v1
     ports:
       - "8080:8080"
-    env_file:
-      - .env
+#!!! idk if this is the best thing to do: comment out the env_file line for CI
+    # env_file:
+    #   - ../src/.env
     environment:
       - PREDICTIONS_STREAM_NAME=ride_predictions
       - TEST_RUN=True
