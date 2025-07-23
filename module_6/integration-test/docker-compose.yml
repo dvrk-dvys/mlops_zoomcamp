@@ -10,8 +10,9 @@ services:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-dummy}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-dummy}
       - KINESIS_ENDPOINT_URL=http://kinesis:4566
-    env_file:
-      - ../src/.env
+#!!! idk if this is the best thing to do: comment out the env_file line for CI
+    # env_file:
+    #   - ../src/.env
     depends_on:
       - kinesis
 

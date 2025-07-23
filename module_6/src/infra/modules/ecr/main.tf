@@ -23,6 +23,7 @@ resource null_resource ecr_image {
     command = <<EOF
             aws ecr get-login-password --region ${var.region} | docker login --username AWS --password-stdin ${var.account_id}.dkr.ecr.${var.region}.amazonaws.com
             cd ../
+            docker buildx rm lambda-builder || true
             docker buildx create --use --name lambda-builder || true
             docker buildx build --platform linux/amd64 --provenance=false --sbom=false --push -t ${aws_ecr_repository.repo.repository_url}:${var.ecr_image_tag} .
         EOF
@@ -37,13 +38,18 @@ resource null_resource ecr_image {
 
 // Wait for the image to be uploaded, before lambda config runs
 data aws_ecr_image lambda_image {
- depends_on = [
-   null_resource.ecr_image
- ]
- repository_name = var.ecr_repo_name
- image_tag       = var.ecr_image_tag
+depends_on = [
+  null_resource.ecr_image
+]
+repository_name = var.ecr_repo_name
+image_tag       = var.ecr_image_tag
 }
 
 output "image_uri" {
-  value     = "${aws_ecr_repository.repo.repository_url}:${data.aws_ecr_image.lambda_image.image_tag}"
+ value     = "${aws_ecr_repository.repo.repository_url}:${data.aws_ecr_image.lambda_image.image_tag}"
 }
+
+# Temporary output for destroy - use a hardcoded tag
+#output "image_uri" {
+#  value     = "${aws_ecr_repository.repo.repository_url}:latest"
+#}

@@ -1,0 +1,139 @@
+name: CD-Deploy
+on:
+  push:
+    branches:
+      - 'develop'
+    paths:
+      - 'module_6/src/**'
+
+env:
+  AWS_DEFAULT_REGION: 'us-east-1'  # Fixed region typo
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+jobs:
+  build-push-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_wrapper: false
+
+      # Define the infrastructure
+      - name: TF plan
+        id: tf-plan
+        working-directory: 'module_6/src/infra'  # Updated path
+        run: |
+          terraform init -backend-config="key=mlops-zoomcamp-prod.tfstate" -reconfigure && terraform plan -var-file=vars/prod.tfvars
+
+      - name: TF Apply
+        id: tf-apply
+        working-directory: 'module_6/src/infra'  # Updated path
+        if: ${{ steps.tf-plan.outcome }} == 'success'
+        run: |
+          terraform apply -auto-approve -var-file=vars/prod.tfvars
+          echo "::set-output name=ecr_repo::$(terraform output ecr_repo | xargs)"
+          echo "::set-output name=predictions_stream_name::$(terraform output predictions_stream_name | xargs)"
+          echo "::set-output name=model_bucket::$(terraform output model_bucket | xargs)"
+          echo "::set-output name=lambda_function::$(terraform output lambda_function | xargs)"
+
+      # Build-Push
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image-step
+        timeout-minutes: 20  # Increased timeout from default 6 minutes
+        working-directory: "module_6/src"  # Updated path to your source code
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ steps.tf-apply.outputs.ecr_repo }}
+          IMAGE_TAG: "latest"   # ${{ github.sha }}
+        run: |
+          docker build -t ${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG} .
+
+          # Retry docker push up to 3 times with exponential backoff
+          for attempt in {1..3}; do
+            echo "Push attempt $attempt..."
+            if docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG; then
+              echo "✅ Push successful on attempt $attempt"
+              break
+            else
+              if [ $attempt -eq 3 ]; then
+                echo "❌ Push failed after 3 attempts"
+                exit 1
+              else
+                echo "Push attempt $attempt failed, waiting before retry..."
+                sleep $((attempt * 10))  # 10s, 20s, 30s delays
+              fi
+            fi
+          done
+
+          echo "::set-output name=image_uri::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+      # Deploy
+      - name: Get model artifacts
+        # The steps here are not suited for production.
+        # In practice, retrieving the latest model version or RUN_ID from a service like MLflow or DVC can also be integrated into a CI/CD pipeline.
+        # But due to the limited scope of this workshop, we would be keeping things simple.
+        # In practice, you would also have a separate training pipeline to write new model artifacts to your Model Bucket in Prod.
+        id: get-model-artifacts
+        timeout-minutes: 10  # Add timeout for S3 sync
+        working-directory: "module_6/src"  # Updated path
+        env:
+          MODEL_BUCKET_DEV: "mlflow-models-585315266445"  # Updated to your actual dev bucket
+          MODEL_BUCKET_PROD: ${{ steps.tf-apply.outputs.model_bucket }}
+        run: |
+          # Since you're not using MLflow run IDs, this step might need adjustment
+          # For now, syncing your existing model bucket structure
+          aws s3 sync s3://${MODEL_BUCKET_DEV} s3://${MODEL_BUCKET_PROD}
+          # Set a dummy RUN_ID since your lambda doesn't use it
+          echo "::set-output name=run_id::no-run-id"
+
+      - name: Update Lambda
+        timeout-minutes: 10  # Add timeout for Lambda updates
+        env:
+          LAMBDA_FUNCTION: ${{ steps.tf-apply.outputs.lambda_function }}
+          PREDICTIONS_STREAM_NAME: ${{ steps.tf-apply.outputs.predictions_stream_name }}
+          MODEL_BUCKET: ${{ steps.tf-apply.outputs.model_bucket }}
+          RUN_ID: ${{ steps.get-model-artifacts.outputs.run_id }}
+        run: |
+          # Since your lambda uses different environment variables, update accordingly
+          variables="{ \
+                    PREDICTIONS_STREAM_NAME=$PREDICTIONS_STREAM_NAME, \
+                    MODEL_BUCKET=$MODEL_BUCKET \
+                    }"
+
+          # Wait for Lambda to be ready with timeout
+          echo "Waiting for Lambda to be ready..."
+          MAX_ATTEMPTS=12  # 1 minute max wait
+          ATTEMPT=0
+          while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+            STATE=$(aws lambda get-function --function-name $LAMBDA_FUNCTION --region ${{ env.AWS_DEFAULT_REGION }} --query 'Configuration.LastUpdateStatus' --output text)
+            if [[ "$STATE" != "InProgress" ]]; then
+              echo "✅ Lambda is ready (status: $STATE)"
+              break
+            fi
+            echo "Lambda still updating... (attempt $((ATTEMPT + 1))/$MAX_ATTEMPTS, status: $STATE)"
+            sleep 5
+            ATTEMPT=$((ATTEMPT + 1))
+          done
+
+          if [ $ATTEMPT -eq $MAX_ATTEMPTS ]; then
+            echo "❌ Lambda update timed out"
+            exit 1
+          fi
+
+          aws lambda update-function-configuration --function-name $LAMBDA_FUNCTION \
+                    --environment "Variables=${variables}"
